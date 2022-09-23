@@ -1,0 +1,12 @@
+.headTD{
+    font-size: 20px;
+    font-weight: bold;
+    padding-bottom: 20px;
+    /* justify-content: center; */
+    text-align: center;
+}
+
+.bodyTD{
+    font-size:18px;
+    text-align: center;
+}
