@@ -8,52 +8,87 @@ import home from "../../resources/icons/home.svg";
 import dashboard from "../../resources/icons/dashboard.svg";
 import setting from "../../resources/icons/setting.svg";
 import { Button } from "react-bootstrap";
-import round from "../../resources/icons/round.svg";
-import tobe from "../../resources/icons/tobediagram.png";
-import asis from "../../resources/icons/asisdiagram.png";
 import Modal from "react-modal";
 import axios from "axios";
-import fileDownload from "js-file-download";
 import "./Redesign.css";
+import Modeler from "bpmn-js/lib/Modeler";
+import { baseApi } from "utils/api";
 
 export default function Redesign() {
   Modal.setAppElement("div");
-  const inputFile = useRef(null);
-  const openFile = () => {
-    inputFile.current.click();
-  };
-  const [btnClass, setBtnClass] = React.useState("");
-  const handleClick = () => {
-    setBtnClass("btnOp");
-    setBtnClass2("");
-    setBtnClass3("");
-  };
-
-  const [btnClass2, setBtnClass2] = React.useState("");
-  const handleClick2 = () => {
-    setBtnClass2("btnOp");
-    setBtnClass("");
-    setBtnClass3("");
-  };
-
-  const [btnClass3, setBtnClass3] = React.useState("");
-  const handleClick3 = () => {
-    setBtnClass3("btnOp");
-    setBtnClass("");
-    setBtnClass2("");
-  };
   const nav = useNavigate();
 
+  /* -------------------------------------------------------------------------- */
+  /*                                Modal confirm                               */
+  /* -------------------------------------------------------------------------- */
   const [modalRedesignIsOpen, setRedesignIsOpen] = React.useState(false);
+  const [afterBP, setAfterBP] = useState()
 
-  function openModalRedesign() {
-    setRedesignIsOpen(true);
+  const handleDownloadFile = async (path, fileName) => {
+    const endpoint = `${baseApi}/file/get-file`;
+
+    const result = await axios
+      .post(
+        endpoint,
+        {
+          path,
+          fileName,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+        }
+      )
+      .catch((error) => {
+        if (error.response.status === 401) nav("/login");
+      });
+
+    if (result.status === 201) {
+      const url = window.URL.createObjectURL(new Blob([result.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName);
+
+      // Append to html link element page
+      document.body.appendChild(link);
+
+      // Start download
+      link.click();
+
+      // Clean up and remove the link
+      link.parentNode.removeChild(link);
+    }
+  };
+
+  const handleConfirm = async () => {
+    await afterModeler.saveXML({ format: true }).then(async (xml, err) => {
+      const endpoint = `${baseApi}/business-process/confirm`;
+      
+      const result = await axios
+        .post(endpoint,{
+          businessProcessId,
+          xml: xml.xml
+        }, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+        })
+        .catch((error) => {
+          if (error.response.status === 401) nav("/login");
+        });
+  
+      if (result.status === 201) {
+        setAfterBP(result.data)
+        setRedesignIsOpen(true);
+      }
+    });
   }
-
   function closeModalRedesign() {
     setRedesignIsOpen(false);
   }
-  
+
   const RedesignStyles = {
     content: {
       top: "50%",
@@ -66,25 +101,242 @@ export default function Redesign() {
       transform: "translate(-50%, -50%)",
       zIndex: 100,
     },
-  }
+  };
 
-  const handleDownload = (url, filename) => {
-    axios
-      .get(url, {
-        responseType: "blob",
+  /* -------------------------------------------------------------------------- */
+  /*                                   Get BP                                   */
+  /* -------------------------------------------------------------------------- */
+  const { state } = useLocation();
+  const { businessProcessId, algorithm2 } = state;
+
+  const getBusinessProcessDiagrams = async (businessProcessId) => {
+    const endpoint = `${baseApi}/business-process/${businessProcessId}`;
+
+    const result = await axios
+      .get(endpoint, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
       })
-      .then((res) => {
-        fileDownload(res.data, filename);
+      .catch((error) => {
+        if (error.response.status === 401) nav("/login");
       });
+
+    if (result.status === 200) {
+      const { fileBPMNPath, fileBPMNAfterMovePath, fileBPMNName } = result.data;
+      downloadBeforeDiagram(fileBPMNPath, fileBPMNName);
+      downloadAfterDiagram(fileBPMNAfterMovePath, fileBPMNName);
+    }
   };
 
-  const handleDownloadTXT = (url) => {
-    const link = document.createElement("a");
-    link.href = url;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  useEffect(() => {
+    if (businessProcessId) {
+      getBusinessProcessDiagrams(businessProcessId);
+    }
+  }, []);
+
+  const handleDownloadBPAfterProcess = async () => {
+    if (afterBP) {
+      handleDownloadFile(afterBP.fileBPMNPath, afterBP.fileBPMNName)
+      handleDownloadFile(afterBP.fileTaskPath, afterBP.fileTaskName)
+    }
   };
+
+  /* -------------------------------------------------------------------------- */
+  /*                             For before diagram                             */
+  /* -------------------------------------------------------------------------- */
+  const beforeDesignRef = useRef();
+  const beforeDownloadLinkRef = useRef();
+  const [beforeDiagram, setBeforeDiagram] = useState();
+  const [beforeModeler, setBeforeModeler] = useState();
+
+  const downloadAfterDiagram = async (path, fileName) => {
+    const endpoint = `${baseApi}/file/get-file`;
+
+    const result = await axios
+      .post(
+        endpoint,
+        {
+          path,
+          fileName,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+          responseType: "blob",
+        }
+      )
+      .catch((error) => {
+        if (error.response.status === 401) nav("/login");
+      });
+
+    if (result.status === 201) {
+      const file = new File([result.data], fileName);
+      setAfterDiagram(file);
+    }
+  };
+
+  const renderBeforeDiagram = () => {
+    const reader = new FileReader();
+    reader.readAsText(beforeDiagram);
+    reader.onloadend = async (e) => {
+      let xml = e.target.result;
+      try {
+        await beforeModeler.importXML(xml);
+        const canvas = beforeModeler.get("canvas");
+        canvas.zoom("fit-viewport", "auto");
+      } catch (err) {
+        console.log(err);
+      }
+    };
+  };
+
+  const setBeforeEncoded = (link, name, data) => {
+    var encodedData = encodeURIComponent(data.xml);
+    if (data) {
+      link.setAttribute(
+        "href",
+        "data:application/bpmn20-xml;charset=UTF-8," + encodedData
+      );
+      link.setAttribute("download", name);
+    }
+  };
+
+  const saveBeforeBpmn = () => {
+    beforeModeler.saveXML({ format: true }).then((xml, err) => {
+      setBeforeEncoded(
+        beforeDownloadLinkRef.current,
+        "diagram.bpmn",
+        err ? null : xml
+      );
+    });
+  };
+
+  useEffect(() => {
+    const container = beforeDesignRef.current;
+    const modeler = new Modeler({
+      container,
+      keyboard: {
+        bindTo: document,
+      },
+    });
+    async function defaultModel() {
+      setBeforeModeler(modeler);
+      try {
+        // await modeler.importXML(baseXml);
+        const canvas = modeler.get("canvas");
+        canvas.zoom("fit-viewport", "auto");
+      } catch (err) {
+        console.log(err);
+      }
+    }
+
+    defaultModel();
+  }, []);
+
+  useEffect(() => {
+    beforeDiagram && renderBeforeDiagram();
+  }, [beforeDiagram]);
+
+  /* -------------------------------------------------------------------------- */
+  /*                              For after diagram                             */
+  /* -------------------------------------------------------------------------- */
+  const afterDesignRef = useRef();
+  const afterDownloadLinkRef = useRef();
+  const [afterDiagram, setAfterDiagram] = useState();
+  const [afterModeler, setAfterModeler] = useState();
+
+  const downloadBeforeDiagram = async (path, fileName) => {
+    const endpoint = `${baseApi}/file/get-file`;
+
+    const result = await axios
+      .post(
+        endpoint,
+        {
+          path,
+          fileName,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+          responseType: "blob",
+        }
+      )
+      .catch((error) => {
+        if (error.response.status === 401) nav("/login");
+      });
+
+    if (result.status === 201) {
+      const file = new File([result.data], fileName);
+      setBeforeDiagram(file);
+    }
+  };
+
+  const renderAfterDiagram = () => {
+    const reader = new FileReader();
+    reader.readAsText(afterDiagram);
+    reader.onloadend = async (e) => {
+      let xml = e.target.result;
+      try {
+        await afterModeler.importXML(xml);
+        const canvas = afterModeler.get("canvas");
+        canvas.zoom("fit-viewport", "auto");
+      } catch (err) {
+        console.log(err);
+      }
+    };
+  };
+
+  const setEncoded = (link, name, data) => {
+    var encodedData = encodeURIComponent(data.xml);
+    if (data) {
+      link.setAttribute(
+        "href",
+        "data:application/bpmn20-xml;charset=UTF-8," + encodedData
+      );
+      link.setAttribute("download", name);
+    }
+  };
+
+  const saveBpmn = () => {
+    afterModeler.saveXML({ format: true }).then((xml, err) => {
+      setEncoded(
+        afterDownloadLinkRef.current,
+        "diagram.bpmn",
+        err ? null : xml
+      );
+    });
+  };
+
+  useEffect(() => {
+    const container = afterDesignRef.current;
+    const modeler = new Modeler({
+      container,
+      keyboard: {
+        bindTo: document,
+      },
+    });
+    async function defaultModel() {
+      setAfterModeler(modeler);
+      try {
+        // await modeler.importXML(baseXml);
+        const canvas = modeler.get("canvas");
+        canvas.zoom("fit-viewport", "auto");
+      } catch (err) {
+        console.log(err);
+      }
+    }
+
+    defaultModel();
+  }, []);
+
+  useEffect(() => {
+    afterDiagram && renderAfterDiagram();
+  }, [afterDiagram]);
 
   return (
     <div className="row">
@@ -117,7 +369,8 @@ export default function Redesign() {
               justifyContent: "center",
             }}
           >
-            Tái thiết kế quy trình thành công. Bạn có muốn tải lược đồ quy trình không?
+            Tái thiết kế quy trình thành công. Bạn có muốn tải lược đồ quy trình
+            không?
           </div>
           <div
             style={{
@@ -139,11 +392,8 @@ export default function Redesign() {
                 marginRight: "50px",
               }}
               variant=""
-              onClick={()=>{
-                handleDownloadTXT(
-                  "https://drive.google.com/uc?id=1uYJ-6th7OU8ZCWSotpNKIuJ1WnHYudTv&export=download"
-                );
-                nav("/dashboardUser")
+              onClick={() => {
+                handleDownloadBPAfterProcess();
               }}
             >
               <span style={{ width: 10 }}></span>
@@ -169,7 +419,7 @@ export default function Redesign() {
               }}
               variant=""
               onClick={() => {
-                nav("/dashboardUser")
+                nav("/dashboardUser");
               }}
             >
               <span style={{ width: 10 }}></span>
@@ -186,6 +436,9 @@ export default function Redesign() {
           </div>
         </div>
       </Modal>
+      {/* -------------------------------------------------------------------------- */
+      /*                                   Drawer                                   */
+      /* -------------------------------------------------------------------------- */}
       <div
         className="col-2"
         style={{
@@ -194,14 +447,14 @@ export default function Redesign() {
         }}
       >
         <div
-          class="border-end bg-white"
+          className="border-end bg-white"
           id="sidebar-wrapper"
           style={{ height: "100%" }}
         >
           <h1 className="text-center">Logo</h1>
-          <div class="list-group list-group-flush">
+          <div className="list-group list-group-flush">
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               href="#!"
               style={{ display: "flex", alignItems: "center" }}
               onClick={() => {
@@ -217,7 +470,7 @@ export default function Redesign() {
               Home
             </a>
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               href="#!"
               style={{ display: "flex", alignItems: "center" }}
             >
@@ -230,7 +483,7 @@ export default function Redesign() {
               Dashboard
             </a>
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               // href="#!"
               style={{ display: "flex", alignItems: "center" }}
               onClick={() => {
@@ -246,7 +499,7 @@ export default function Redesign() {
               Redesign
             </a>
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               href="#!"
               style={{ display: "flex", alignItems: "center" }}
             >
@@ -274,16 +527,22 @@ export default function Redesign() {
                 if (index === 0) {
                   nav("/profile");
                 }
+                if (index === 1) {
+                  localStorage.removeItem("access_token");
+                  nav("/login");
+                }
               }}
             />
           </div>
+          {/* -------------------------------------------------------------------------- */
+          /*                                Before design                               */
+          /* -------------------------------------------------------------------------- */}
           <div
             className="mt-3 text-center"
             style={{
               paddingLeft: "5px",
-              boxShadow:
-                "0 6px 20px 0 rgba(0, 0, 0, 0.1), 0 6px 20px 0 rgba(0, 0, 0, 0.1)",
-              paddingBottom:"10px"
+
+              paddingBottom: "10px",
             }}
           >
             <div
@@ -294,126 +553,29 @@ export default function Redesign() {
             >
               Quy trình trước khi tái thiết kế
             </div>
-            <img
-              src={asis}
+            <div
+              ref={beforeDesignRef}
               style={{
-                width: "1050px",
+                width: "100%",
                 marginTop: "10px",
+                height: "500px",
+                boxShadow:
+                  "0 6px 20px 0 rgba(0, 0, 0, 0.1), 0 6px 20px 0 rgba(0, 0, 0, 0.1)",
+                borderRadius: 10,
               }}
             />
           </div>
-          <div className="mt-3 text-center" style={{
-              paddingLeft: "5px",
-              boxShadow:
-                "0 6px 20px 0 rgba(0, 0, 0, 0.1), 0 6px 20px 0 rgba(0, 0, 0, 0.1)",
-              paddingBottom:"10px"
-            }}>
-              <div
-              style={{
-                fontSize: "24px",
-                fontWeight: "bold",
-              }}
-            >
-              Quy trình sau khi tái thiết kế
-            </div>
-            <img
-              src={tobe}
-              style={{
-                width: "1050px",
-              }}
-            />
-          </div>
-          {/* <div
-            className="row scroll-button"
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              flexWrap: "nowrap",
-              width: "70vw",
-              overflowX: "scroll",
-              paddingTop: 10,
-              paddingBottom: 20,
-              marginTop: "20px",
-            }}
-          >
-            <Button
-              className={btnClass}
-              style={{
-                height: "150px",
-                width: "150px",
-                border: "1px solid white",
-                boxShadow:
-                  "0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19)",
-                marginLeft: "27px",
-                marginRight: "50px",
-              }}
-              variant=""
-              onClick={handleClick}
-            >
-              <div className="row text-align-left">
-                <div
-                  className="col m-auto"
-                  style={{ fontSize: 28, fontWeight: "bold" }}
-                >
-                  Option 1
-                </div>
-              </div>
-            </Button>
-            <Button
-              className={btnClass2}
-              style={{
-                height: "150px",
-                width: "150px",
-                border: "1px solid white",
-                boxShadow:
-                  "0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19)",
-                marginLeft: 10,
-                marginRight: "50px",
-              }}
-              variant=""
-              onClick={handleClick2}
-            >
-              <div className="row text-align-left">
-                <div
-                  className="col m-auto"
-                  style={{ fontSize: 28, fontWeight: "bold" }}
-                >
-                  Option 2
-                </div>
-              </div>
-            </Button>
-            <Button
-              className={btnClass3}
-              style={{
-                height: "150px",
-                width: "150px",
-                border: "1px solid white",
-                boxShadow:
-                  "0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19)",
-                marginLeft: 10,
-                marginRight: "50px",
-              }}
-              variant=""
-              onClick={handleClick3}
-            >
-              <div className="row text-align-left">
-                <div
-                  className="col m-auto"
-                  style={{ fontSize: 28, fontWeight: "bold" }}
-                >
-                  Option 3
-                </div>
-              </div>
-            </Button>
-          </div> */}
+          {/* -------------------------------------------------------------------------- */
+          /*                                 Description                                */
+          /* -------------------------------------------------------------------------- */}
           <div
             style={{
-              marginLeft: 25,
-              width: "70vw",
+              width: "100%",
               height: 300,
               marginTop: 20,
               boxShadow:
                 "0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19)",
+              borderRadius: 10,
             }}
           >
             <div style={{ fontWeight: "bold", fontSize: 28, color: "#20297C" }}>
@@ -423,18 +585,47 @@ export default function Redesign() {
               <dl>
                 <dt>Giải thuật 1</dt>
                 <dd>
-                  - Tác vụ tích hợp mô hình phân lớp: Create payment
-                  construction
+                  - Tác vụ tích hợp mô hình phân lớp: {algorithm2?.indexNameAlg1}
                 </dd>
-                <dd>- Tác vụ bị xóa khỏi quy trình: Refund Customer</dd>
+                <dd>- Tác vụ bị bị loại bỏ khỏi quy trình (Viền đỏ): {algorithm2?.listNameToRemove}</dd>
                 <dt>Giải thuật 2</dt>
-                <dd>- Tác vụ tích hợp mô hình phân lớp: Search Flight</dd>
-                <dd>- Vị trí tác vụ có thể dời liền sau: Notify customer</dd>
+                <dd>- Tác vụ tích hợp mô hình phân lớp: {algorithm2?.indexNameAlg2}</dd>
+                <dd>- Vị trí tác vụ có thể dời liền sau (Viền xanh lam): {algorithm2?.parentName}</dd>
                 <dd>
-                  - Tác vụ bị thay đổi vị trí: Create payment construction
+                  - Tác vụ bị thay đổi vị trí (Viền xanh lá): {algorithm2?.childName}
                 </dd>
               </dl>
             </div>
+          </div>
+          {/* -------------------------------------------------------------------------- */
+          /*                              After description                             */
+          /* -------------------------------------------------------------------------- */}
+          <div
+            className="mt-3 text-center"
+            style={{
+              paddingLeft: "5px",
+              paddingBottom: "10px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "24px",
+                fontWeight: "bold",
+              }}
+            >
+              Quy trình sau khi tái thiết kế
+            </div>
+            <div
+              ref={afterDesignRef}
+              style={{
+                width: "100%",
+                marginTop: "10px",
+                height: "500px",
+                boxShadow:
+                  "0 6px 20px 0 rgba(0, 0, 0, 0.1), 0 6px 20px 0 rgba(0, 0, 0, 0.1)",
+                borderRadius: 10,
+              }}
+            />
           </div>
           <div
             style={{
@@ -454,8 +645,8 @@ export default function Redesign() {
                 justifyContent: "center",
                 alignItems: "center",
               }}
-              onClick={()=>{
-                openModalRedesign();
+              onClick={() => {
+                handleConfirm();
               }}
               variant=""
             >

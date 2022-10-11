@@ -6,12 +6,12 @@ import google from "../../resources/icons/google.svg";
 import facebook from "../../resources/icons/facebook.svg";
 import signup from "../../resources/icons/signup.svg";
 import axios from "axios";
+import { baseApi } from "utils/api";
 
 export default function Login() {
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const baseApi = "http://localhost:3333";
 
   const handleSignUp = async () => {
     if (password !== confirmPassword)
@@ -26,6 +26,7 @@ export default function Login() {
       });
   
       if (result.status === 201) {
+        localStorage.setItem('access_token', result.data.access_token)
         nav("/dashboardUser");
       } else {
         alert("Lỗi đăng nhập")

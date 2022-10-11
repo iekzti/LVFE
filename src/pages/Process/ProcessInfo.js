@@ -14,68 +14,119 @@ import { Button } from "react-bootstrap";
 import Select from "react-select";
 // import Select, { SelectChangeEvent } from "@mui/material/Select";
 import { MenuItem, OutlinedInput } from "@mui/material";
+import { baseApi } from "utils/api";
+import axios from "axios";
 
 export default function ProcessInfo() {
   Modal.setAppElement("div");
   const nav = useNavigate();
   const { state } = useLocation();
-  const { file: process } = state;
+  const { businessProcessId } = state;
+  const [tasks, setTasks] = useState([]);
 
-  const [processInfo, setProcessInfo] = useState({
-    id: process.id,
-    name: process.name,
-    type: process.type,
-    topic: process.topic,
-    listTask: process.listTask,
-    listUnit: process.listUnit,
-  });
+  const getTasks = async () => {
+    const endpoint = `${baseApi}/business-process/${businessProcessId}/tasks`;
+
+    const result = await axios
+      .get(endpoint, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
+      })
+      .catch((error) => {
+        if (error.response.status === 401) nav("/login");
+      });
+
+    if (result.status === 200) {
+      setTasks(result.data);
+    }
+  };
+
+  useEffect(() => {
+    getTasks();
+  }, []);
 
   const [isEditTime, setIsEditTime] = useState(false);
 
-  const [listUnit, setListUnit] = React.useState([]);
-  const [unitName, setUnitName] = React.useState();
-  const [unitType, setUnitType] = React.useState("sequential");
-  const [unitTask, setUnitTask] = React.useState();
-  const [percentYes, setPercentYes] = React.useState("");
-  const [percentNo, setPercentNo] = React.useState("");
+  const handleSave = async () => {
+    const endpoint = `${baseApi}/business-process/tasks`;
 
-  const [isEdit, setIsEdit] = React.useState();
-
-  const [unitNameEdit, setUnitNameEdit] = React.useState();
-  const [unitTypeEdit, setUnitTypeEdit] = React.useState("sequential");
-  const [unitTaskEdit, setUnitTaskEdit] = React.useState();
-  const [percentYesEdit, setPercentYesEdit] = React.useState("");
-  const [percentNoEdit, setPercentNoEdit] = React.useState("");
-  const listUnitTask = process.listUnit.reduce(
-    (prev, cur) => prev.concat([...cur.unitTask]),
-    []
-  );
-  const [selectedTask, setSelectedTask] = useState([...listUnitTask]);
-
-  useEffect(() => {
-    const test = [...processInfo.listTask, ...processInfo.listUnit].filter(
-      (task) => {
-        if (task.nameTask) {
-          const isSelected = selectedTask.find(
-            (t) => t.value === task.nameTask
-          );
-          return !isSelected;
+    const result = await axios
+      .put(
+        endpoint,
+        { tasks },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
         }
-        if (task.unitName) {
-          const isSelected = selectedTask.find(
-            (t) => t.value === task.unitName
-          );
-          return !isSelected;
-        }
-        return false;
-      }
-    );
-    console.log("🚀 ~ file: ProcessInfo.js ~ line 58 ~ useEffect ~ test", test);
-  }, [unitTaskEdit]);
+      )
+      .catch((error) => {
+        if (error.response.status === 401) nav("/login");
+      });
+
+    if (result.status === 200) {
+      getTasks();
+      alert("Thành công");
+      setIsEditTime(prev => !prev)
+    }
+  };
+
+  // const [processInfo, setProcessInfo] = useState({
+  //   id: process.id,
+  //   name: process.name,
+  //   type: process.type,
+  //   topic: process.topic,
+  //   listTask: process.listTask,
+  //   listUnit: process.listUnit,
+  // });
+
+  // const [isEditTime, setIsEditTime] = useState(false);
+
+  // const [listUnit, setListUnit] = React.useState([]);
+  // const [unitName, setUnitName] = React.useState();
+  // const [unitType, setUnitType] = React.useState("sequential");
+  // const [unitTask, setUnitTask] = React.useState();
+  // const [percentYes, setPercentYes] = React.useState("");
+  // const [percentNo, setPercentNo] = React.useState("");
+
+  // const [isEdit, setIsEdit] = React.useState();
+
+  // const [unitNameEdit, setUnitNameEdit] = React.useState();
+  // const [unitTypeEdit, setUnitTypeEdit] = React.useState("sequential");
+  // const [unitTaskEdit, setUnitTaskEdit] = React.useState();
+  // const [percentYesEdit, setPercentYesEdit] = React.useState("");
+  // const [percentNoEdit, setPercentNoEdit] = React.useState("");
+  // const listUnitTask = process.listUnit.reduce(
+  //   (prev, cur) => prev.concat([...cur.unitTask]),
+  //   []
+  // );
+  // const [selectedTask, setSelectedTask] = useState([...listUnitTask]);
+
+  // useEffect(() => {
+  //   const test = [...processInfo.listTask, ...processInfo.listUnit].filter(
+  //     (task) => {
+  //       if (task.nameTask) {
+  //         const isSelected = selectedTask.find(
+  //           (t) => t.value === task.nameTask
+  //         );
+  //         return !isSelected;
+  //       }
+  //       if (task.unitName) {
+  //         const isSelected = selectedTask.find(
+  //           (t) => t.value === task.unitName
+  //         );
+  //         return !isSelected;
+  //       }
+  //       return false;
+  //     }
+  //   );
+  //   console.log("🚀 ~ file: ProcessInfo.js ~ line 58 ~ useEffect ~ test", test);
+  // }, [unitTaskEdit]);
 
   const [modalCalIsOpen, setCalIsOpen] = React.useState(false);
 
-  function openModalCal() {
+  async function openModalCal() {
     setCalIsOpen(true);
   }
 
@@ -280,9 +331,9 @@ export default function ProcessInfo() {
               paddingTop: "20px",
             }}
           >
-            Thời gian chu kỳ của cả quy trình: {processInfo?.id ==="process3"? 110.425 : 59.225 }{"  "} Phút
+            Thời gian chu kỳ của cả quy trình: 110.425 Phút
           </div>
-          
+
           <div
             style={{
               fontWeight: "bold",
@@ -293,7 +344,7 @@ export default function ProcessInfo() {
               paddingTop: "20px",
             }}
           >
-            Chi phí tiêu hao của cả quy trình: {processInfo?.id ==="process3"? 8.834 : 4.738}{"  "}$/Giao dịch
+          Chi phí tiêu hao của cả quy trình: 8.834 $/Giao dịch
           </div>
         </div>
       </Modal>
@@ -305,14 +356,14 @@ export default function ProcessInfo() {
         }}
       >
         <div
-          class="border-end bg-white"
+          className="border-end bg-white"
           id="sidebar-wrapper"
           style={{ height: "100%" }}
         >
           <h1 className="text-center">Logo</h1>
-          <div class="list-group list-group-flush">
+          <div className="list-group list-group-flush">
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               // href="#!"
               style={{ display: "flex", alignItems: "center" }}
               onClick={() => {
@@ -328,12 +379,14 @@ export default function ProcessInfo() {
               Home
             </a>
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               // href="#!"
               style={{
                 display: "flex",
                 alignItems: "center",
-                backgroundColor: "#8AECE5",
+              }}
+              onClick={() => {
+                nav("/dashboardUser");
               }}
             >
               <img
@@ -345,7 +398,7 @@ export default function ProcessInfo() {
               Dashboard
             </a>
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               // href="#!"
               style={{ display: "flex", alignItems: "center" }}
               onClick={() => {
@@ -361,7 +414,7 @@ export default function ProcessInfo() {
               Redesign
             </a>
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               // href="#!"
               style={{ display: "flex", alignItems: "center" }}
             >
@@ -435,7 +488,7 @@ export default function ProcessInfo() {
                     marginTop: "10px",
                   }}
                   onClick={() => {
-                    setIsEditTime(!isEditTime);
+                    !isEditTime ? setIsEditTime(!isEditTime) : handleSave();
                   }}
                 >
                   <div
@@ -465,62 +518,51 @@ export default function ProcessInfo() {
                 </tr>
               </thead>
               <tbody>
-                {processInfo.listTask.map((task, index) => {
-                  if (isEditTime)
-                    return (
-                      <tr>
-                        <td className="bodyTD">{index + 1}</td>
-                        <td className="bodyTD">{task.nameTask}</td>
-                        <td className="bodyTD">
-                          <input
-                            placeholder="Time (s)"
-                            value={task.time}
-                            style={{
-                              backgroundColor: "#F2F2F2",
-                              borderTop: "0px",
-                              borderLeft: "0px",
-                              borderRight: "0px",
-                              borderBottom: "1px",
-                              borderRadius: "10px",
-                              outline: "none",
-                              width: "100px",
-                              padding: "5px",
-                              textAlign: "center",
-                            }}
-                            onChange={(event) => {
-                              const newList = processInfo.listTask;
-                              const index = newList.findIndex(
-                                (t) => t.nameTask === task.nameTask
-                              );
-                              newList[index] = {
-                                ...newList[index],
-                                time: event.target.value,
-                              };
-                              setProcessInfo({
-                                ...processInfo,
-                                listTask: newList,
-                              });
-                            }}
-                          ></input>
-                        </td>
-                      </tr>
-                    );
+                {tasks.map((task, index) => {
                   return (
-                    <tr
-                      style={{
-                        height: "39px",
-                      }}
-                    >
+                    <tr>
                       <td className="bodyTD">{index + 1}</td>
-                      <td className="bodyTD">{task.nameTask}</td>
-                      <td className="bodyTD">{task.time}</td>
+                      <td className="bodyTD">{task.name}</td>
+                      <td className="bodyTD">
+                        <input
+                          type={"text"}
+                          placeholder="Time"
+                          defaultValue={task.time}
+                          style={{
+                            backgroundColor: "#F2F2F2",
+                            borderTop: "0px",
+                            borderLeft: "0px",
+                            borderRight: "0px",
+                            borderBottom: "1px",
+                            borderRadius: "10px",
+                            outline: "none",
+                            width: "100px",
+                            padding: "5px",
+                            textAlign: "center",
+                          }}
+                          disabled={!isEditTime}
+                          onChange={(event) => {
+                            setTasks((prev) => {
+                              const index = tasks.findIndex(
+                                (t) => t.id === task.id
+                              );
+                              const newTasks = [...prev];
+                              newTasks[index] = {
+                                ...newTasks[index],
+                                time: parseFloat(event.target.value),
+                              };
+                              return newTasks;
+                            });
+                          }}
+                        ></input>
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-          <div
+          {/* <div
             className="mt-3 text-center"
             style={{
               width: "75vw",
@@ -1128,8 +1170,8 @@ export default function ProcessInfo() {
                 })}
               </tbody>
             </table>
-          </div>
-          <div
+          </div> */}
+          {/* <div
             className="mt-3 text-center"
             style={{
               width: "75vw",
@@ -1149,12 +1191,12 @@ export default function ProcessInfo() {
             >
               <Select
                 isMulti
-                options={[...processInfo.listUnit].map((task) => {
-                  return {
-                    value: task.unitName,
-                    label: task.unitName,
-                  };
-                })}
+                // options={[...processInfo.listUnit].map((task) => {
+                //   return {
+                //     value: task.unitName,
+                //     label: task.unitName,
+                //   };
+                // })}
               />
             </div>
             <Button
@@ -1178,7 +1220,7 @@ export default function ProcessInfo() {
                 Lưu
               </div>
             </Button>
-          </div>
+          </div> */}
           <div
             style={{
               display: "flex",

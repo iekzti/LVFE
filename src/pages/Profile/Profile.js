@@ -1,20 +1,94 @@
-import React from "react";
+import axios from "axios";
+import dayjs from "dayjs";
+import React, { useEffect, useState } from "react";
 import Avatar from "react-avatar-edit";
 import { Button } from "react-bootstrap";
 import Modal from "react-modal";
 import { useNavigate } from "react-router-dom";
+import { baseApi } from "utils/api";
 import DropdownButton from "../../components/DropdownButton";
 import avatar from "../../resources/icons/avatar.svg";
 import dashboard from "../../resources/icons/dashboard.svg";
-import redesign from "../../resources/icons/redesign.svg";
 import home from "../../resources/icons/home.svg";
 import logout_icon from "../../resources/icons/logout_icon.svg";
 import profile from "../../resources/icons/profile.svg";
+import redesign from "../../resources/icons/redesign.svg";
 import setting from "../../resources/icons/setting.svg";
-import logo1 from "../../resources/icons/logo1.png";
 
 export default function Dashboard() {
   const nav = useNavigate();
+
+  const [user, setUser] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    phone: "",
+    address: "",
+    birth: "",
+  });
+
+  const resetForm = () =>
+    setUser({
+      email: "",
+      firstName: "",
+      lastName: "",
+      phone: "",
+      address: "",
+      birth: "",
+    });
+
+  const getMe = async () => {
+    const endpoint = `${baseApi}/users/me`;
+
+    const result = await axios
+      .get(endpoint, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
+      })
+      .catch((error) => {
+        if (error.response.status === 401) nav("/login");
+      });
+
+    if (result.status === 200) {
+      setUser((prev) => ({ ...prev, ...result.data }));
+    }
+  };
+
+  useEffect(() => {
+    getMe();
+  }, []);
+
+  const handleSaveProfile = async () => {
+    const endpoint = `${baseApi}/users/${user.id}`;
+
+    const result = await axios
+      .put(
+        endpoint,
+        {
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          address: user.address,
+          birth: user.birth,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+        }
+      )
+      .catch((error) => {
+        if (error.response.status === 401) nav("/login");
+      });
+
+    if (result.status === 200) {
+      alert("Thành công");
+      getMe();
+    }
+  };
+
   const [state, setState] = React.useState({
     preview: "",
     src: "",
@@ -50,12 +124,12 @@ export default function Dashboard() {
   }
 
   const [userInfo, setUserInfo] = React.useState({
-    id: "user02",
+    id: "user01",
     name: "Hồ Anh Khiết",
-    phoneNumber: "0706665086",
-    birth: "1999-02-04",
+    phoneNumber: "",
+    birth: "",
     email: "khiet@gmail.com",
-    address: " AG",
+    address: "",
   });
 
   const customStyles = {
@@ -163,19 +237,19 @@ export default function Dashboard() {
         }}
       >
         <div
-          class="border-end bg-white"
+          className="border-end bg-white"
           id="sidebar-wrapper"
           style={{ height: "100%" }}
         >
           <h1 className="text-center">Logo</h1>
-          <div class="list-group list-group-flush">
+          <div className="list-group list-group-flush">
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               // href="#!"
               style={{ display: "flex", alignItems: "center" }}
-              onClick={()=>{
-                nav("/home");}
-              }
+              onClick={() => {
+                nav("/home");
+              }}
             >
               <img
                 src={home}
@@ -186,12 +260,12 @@ export default function Dashboard() {
               Home
             </a>
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               // href="#!"
               style={{ display: "flex", alignItems: "center" }}
-              onClick={()=>{
-                nav("/dashboardUser");}
-              }
+              onClick={() => {
+                nav("/dashboardUser");
+              }}
             >
               <img
                 src={dashboard}
@@ -202,12 +276,12 @@ export default function Dashboard() {
               Dashboard
             </a>
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               // href="#!"
-              style={{ display: "flex", alignItems: "center"}}
-              onClick={()=>{
-                nav("/dashboard");}
-              }
+              style={{ display: "flex", alignItems: "center" }}
+              onClick={() => {
+                nav("/dashboard");
+              }}
             >
               <img
                 src={redesign}
@@ -218,7 +292,7 @@ export default function Dashboard() {
               Redesign
             </a>
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               // href="#!"
               style={{ display: "flex", alignItems: "center" }}
             >
@@ -245,6 +319,10 @@ export default function Dashboard() {
               onClick={(item, index) => {
                 if (index === 0) {
                   nav("/profile");
+                }
+                if (index === 1) {
+                  localStorage.removeItem("access_token");
+                  nav("/login");
                 }
               }}
             />
@@ -283,6 +361,7 @@ export default function Dashboard() {
               ></img>
             </div>
             <div className="col">
+              {/* ------------------------------- First Name ------------------------------- */}
               <div
                 style={{
                   marginTop: "10px",
@@ -294,7 +373,7 @@ export default function Dashboard() {
                     color: "#20297C",
                   }}
                 >
-                  Họ và Tên
+                  Họ
                 </div>
                 <div
                   style={{
@@ -308,7 +387,7 @@ export default function Dashboard() {
                 >
                   <input
                     id={"idName_" + userInfo.id}
-                    placeholder="Họ và Tên"
+                    placeholder="Họ"
                     style={{
                       background: "transparent",
                       borderTop: "1px",
@@ -319,13 +398,65 @@ export default function Dashboard() {
                       width: "100%",
                       padding: "5px",
                     }}
-                    value={userInfo.name}
+                    value={user.firstName}
                     onChange={(e) => {
-                      setUserInfo({ ...userInfo, name: e.target.value });
+                      setUser((prev) => ({
+                        ...prev,
+                        firstName: e.target.value,
+                      }));
                     }}
                   ></input>
                 </div>
               </div>
+              {/* -------------------------------- Last Name ------------------------------- */}
+              <div
+                style={{
+                  marginTop: "10px",
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: "bold",
+                    color: "#20297C",
+                  }}
+                >
+                  Tên
+                </div>
+                <div
+                  style={{
+                    background: "white",
+                    padding: "10px",
+                    width: "90%",
+                    borderRadius: "5px",
+                    marginTop: "10px",
+                    backgroundColor: "#F2F2F2",
+                  }}
+                >
+                  <input
+                    id={"idName_" + userInfo.id}
+                    placeholder="Tên"
+                    style={{
+                      background: "transparent",
+                      borderTop: "1px",
+                      borderLeft: "1px",
+                      borderRight: "1px",
+                      borderBottom: "1px",
+                      outline: "none",
+                      width: "100%",
+                      padding: "5px",
+                    }}
+                    value={user.lastName}
+                    onChange={(e) => {
+                      setUser((prev) => ({
+                        ...prev,
+                        lastName: e.target.value,
+                      }));
+                    }}
+                  ></input>
+                </div>
+              </div>
+              {/* ---------------------------------- Phone --------------------------------- */}
+
               <div
                 style={{
                   marginTop: "10px",
@@ -362,13 +493,17 @@ export default function Dashboard() {
                       width: "100%",
                       padding: "5px",
                     }}
-                    value={userInfo.phoneNumber}
+                    value={user.phone}
                     onChange={(e) => {
-                      setUserInfo({ ...userInfo, phoneNumber: e.target.value });
+                      setUser((prev) => ({
+                        ...prev,
+                        phone: e.target.value,
+                      }));
                     }}
                   ></input>
                 </div>
               </div>
+              {/* ---------------------------------- Birth --------------------------------- */}
               <div
                 style={{
                   marginTop: "10px",
@@ -405,13 +540,17 @@ export default function Dashboard() {
                       width: "100%",
                       padding: "5px",
                     }}
-                    value={userInfo.birth}
+                    value={dayjs(user.birth).format("YYYY-MM-DD")}
                     onChange={(e) => {
-                      setUserInfo({ ...userInfo, birth: e.target.value });
+                      setUser((prev) => ({
+                        ...prev,
+                        birth: e.target.value,
+                      }));
                     }}
                   ></input>
                 </div>
               </div>
+              {/* --------------------------------- Address -------------------------------- */}
               <div
                 style={{
                   marginTop: "10px",
@@ -448,13 +587,18 @@ export default function Dashboard() {
                       width: "100%",
                       padding: "5px",
                     }}
-                    value={userInfo.address}
+                    value={user.address}
                     onChange={(e) => {
-                      setUserInfo({ ...userInfo, address: e.target.value });
+                      setUser((prev) => ({
+                        ...prev,
+                        address: e.target.value,
+                      }));
                     }}
                   ></input>
                 </div>
               </div>
+
+              {/* ------------------------------- Save Button ------------------------------ */}
               <div
                 style={{
                   display: "flex",
@@ -474,6 +618,7 @@ export default function Dashboard() {
                     alignItems: "center",
                   }}
                   variant=""
+                  onClick={handleSaveProfile}
                 >
                   <span style={{ width: 10 }}></span>
                   <div

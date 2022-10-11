@@ -5,6 +5,7 @@ import Avatar from "react-avatar-edit";
 import { Button } from "react-bootstrap";
 import Modal from "react-modal";
 import { useNavigate } from "react-router-dom";
+import { baseApi } from "utils/api";
 import DropdownButton from "../../components/DropdownButton";
 import addUser from "../../resources/icons/addUser.svg";
 import avatar from "../../resources/icons/avatar.svg";
@@ -94,7 +95,7 @@ export default function DashboardAdmin() {
 
   function handleClickDeleteUser(id) {
     setDeleteIsOpen(true);
-    setId(id)
+    setId(id);
   }
 
   function closeModalDelete() {
@@ -106,11 +107,18 @@ export default function DashboardAdmin() {
   }
 
   async function getUsers() {
-    const baseApi = "http://localhost:3333";
     const endPoint = `${baseApi}/users`;
 
     try {
-      const result = await axios.get(endPoint);
+      const result = await axios
+        .get(endPoint, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+        })
+        .catch((error) => {
+          if (error.response.status === 401) nav("/login");
+        });
       if (result.status === 200) {
         return setUsers(result.data);
       }
@@ -141,7 +149,6 @@ export default function DashboardAdmin() {
   async function handleAddUser() {
     if (password !== confirmPassword) return alert("Mật khẩu không khớp");
 
-    const baseApi = "http://localhost:3333";
     const endPoint = `${baseApi}/users`;
     const data = {
       email,
@@ -154,7 +161,15 @@ export default function DashboardAdmin() {
     };
 
     try {
-      const result = await axios.post(endPoint, data);
+      const result = await axios
+        .post(endPoint, data, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+        })
+        .catch((error) => {
+          if (error.response.status === 401) nav("/login");
+        });
       if (result.status === 201) {
         getUsers();
         closeModalAddUser();
@@ -170,11 +185,18 @@ export default function DashboardAdmin() {
   }
 
   async function getUserById(id) {
-    const baseApi = "http://localhost:3333";
     const endPoint = `${baseApi}/users/${id}`;
 
     try {
-      const result = await axios.get(endPoint);
+      const result = await axios
+        .get(endPoint, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+        })
+        .catch((error) => {
+          if (error.response.status === 401) nav("/login");
+        });
       if (result.status === 200) {
         const user = result.data;
         setEmail(user.email);
@@ -201,7 +223,6 @@ export default function DashboardAdmin() {
   }
 
   async function handleUpdateUser() {
-    const baseApi = "http://localhost:3333";
     const endPoint = `${baseApi}/users/${id}`;
     const data = {
       email,
@@ -214,7 +235,15 @@ export default function DashboardAdmin() {
     };
 
     try {
-      const result = await axios.put(endPoint, data);
+      const result = await axios
+        .put(endPoint, data, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+        })
+        .catch((error) => {
+          if (error.response.status === 401) nav("/login");
+        });
       if (result.status === 201) {
         getUserById(id);
         return;
@@ -227,15 +256,22 @@ export default function DashboardAdmin() {
     }
   }
 
-  async function handleDeleteUser () {
-    const baseApi = "http://localhost:3333";
+  async function handleDeleteUser() {
     const endPoint = `${baseApi}/users/${id}`;
 
     try {
-      const result = await axios.delete(endPoint);
+      const result = await axios
+        .delete(endPoint, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+        })
+        .catch((error) => {
+          if (error.response.status === 401) nav("/login");
+        });
       if (result.status === 200) {
         getUsers();
-        setDeleteIsOpen(false)
+        setDeleteIsOpen(false);
         return;
       }
     } catch (error) {
@@ -1233,7 +1269,11 @@ export default function DashboardAdmin() {
                 marginRight: "50px",
               }}
               variant=""
-              onClick={handleDeleteUser}
+              onClick={()=>{
+                handleDeleteUser();
+                closeModalDelete();
+                closeModalInfo();
+              }}
             >
               <span style={{ width: 10 }}></span>
               <div
@@ -1283,14 +1323,14 @@ export default function DashboardAdmin() {
         }}
       >
         <div
-          class="border-end bg-white"
+          className="border-end bg-white"
           id="sidebar-wrapper"
           style={{ height: "100%" }}
         >
           <h1 className="text-center">Logo</h1>
-          <div class="list-group list-group-flush">
+          <div className="list-group list-group-flush">
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               // href="#!"
               style={{ display: "flex", alignItems: "center" }}
             >
@@ -1303,7 +1343,7 @@ export default function DashboardAdmin() {
               Home
             </a>
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               // href="#!"
               style={{
                 display: "flex",
@@ -1320,7 +1360,7 @@ export default function DashboardAdmin() {
               Dashboard
             </a>
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               // href="#!"
               style={{ display: "flex", alignItems: "center" }}
               onClick={() => {
@@ -1336,7 +1376,7 @@ export default function DashboardAdmin() {
               History
             </a>
             <a
-              class="list-group-item list-group-item-action list-group-item-light p-3"
+              className="list-group-item list-group-item-action list-group-item-light p-3"
               href="#!"
               style={{ display: "flex", alignItems: "center" }}
             >
@@ -1409,6 +1449,10 @@ export default function DashboardAdmin() {
                   if (index === 0) {
                     nav("/profile");
                   }
+                  if (index === 1) {
+                    localStorage.removeItem("access_token");
+                    nav("/login");
+                  }
                 }}
               />
             </div>
@@ -1459,7 +1503,7 @@ export default function DashboardAdmin() {
                   .filter((user) => user?.email?.includes(searchText))
                   .map((user, index) => (
                     <tr>
-                      <td className="bodyTD">{user.id}</td>
+                      <td className="bodyTD">{index + 1}</td>
                       <td className="bodyTD" width={"500px"}>
                         {user.email}
                       </td>

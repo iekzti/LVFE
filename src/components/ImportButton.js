@@ -6,8 +6,8 @@ export default function ImportButton(props) {
     <button
       className="btn import_button"
       style={{
-        minWidth: "230px",
-        minHeight: "100px",
+        width: '100%',
+        minHeight: "70px",
         display: "flex",
         flexDirection: "row",
         justifyContent: "center",

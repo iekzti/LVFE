@@ -166,6 +166,10 @@ export default function HistoryAdmin() {
                 if (index === 0) {
                   nav("/profile");
                 }
+                if (index === 1) {
+                  localStorage.removeItem("access_token");
+                  nav("/login");
+                }
               }}
             />
           </div>
